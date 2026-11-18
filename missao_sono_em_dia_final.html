@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Missão: Sono em Dia</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; padding: 20px;
+      display: grid; place-items: center;
+      font-family: Arial, sans-serif; color: #f5f3ff;
+      background: radial-gradient(circle at top, #5b1722 0%, #250d16 48%, #12090e 100%);
+    }
+    .game {
+      width: min(100%, 520px); padding: 26px;
+      background: #35131f; border: 1px solid #9f3449;
+      border-radius: 22px; box-shadow: 0 15px 40px #080b20aa;
+    }
+    h1 { margin: 0 0 8px; font-size: 1.8rem; }
+    .subtitle { color: #f0c5ce; line-height: 1.5; margin-top: 0; }
+    .top { display: flex; justify-content: space-between; gap: 12px; margin: 20px 0 10px; }
+    .pill { background: #642238; color: #fff0f3; padding: 9px 12px; border-radius: 999px; font-weight: bold; }
+    .bar { height: 13px; background: #1b0a10; border: 1px solid #713047; border-radius: 20px; overflow: hidden; }
+    #barFill { height: 100%; width: 0%; background: linear-gradient(90deg, #e34b62, #ff9a8b); transition: width .25s; }
+    #question { font-size: 1.25rem; line-height: 1.45; margin: 24px 0 18px; }
+    .choices { display: grid; gap: 11px; }
+    button {
+      width: 100%; border: 0; border-radius: 13px; padding: 15px;
+      font-size: 1rem; font-weight: bold; text-align: left;
+      color: #35131f; background: #fff0f2; cursor: pointer;
+      transition: transform .12s, background .12s, opacity .12s;
+    }
+    button:hover:not(:disabled) { background: #ffd5dc; transform: translateY(-1px); }
+    button:focus-visible { outline: 3px solid #ff9a8b; outline-offset: 3px; }
+    button:disabled { cursor: default; opacity: .82; }
+    button.correct { background: #b8f0d0; color: #123b29; }
+    button.incorrect { background: #ffc0c8; color: #651b2a; }
+    #feedback { min-height: 52px; margin: 17px 0 0; color: #ffd8df; line-height: 1.45; }
+    .mainButton { margin-top: 16px; text-align: center; background: #e34b62; color: white; }
+    .mainButton:hover:not(:disabled) { background: #f36a7d; }
+    .hidden { display: none; }
+    .small { color: #d8aeb8; font-size: .85rem; line-height: 1.5; margin: 18px 0 0; }
+  </style>
+</head>
+<body>
+  <main class="game">
+    <h1>🌙 Missão: Sono em Dia</h1>
+    <p class="subtitle">Você tem uma noite para cuidar da sua energia. Faça escolhas e veja como seus hábitos podem ajudar ou atrapalhar o descanso!</p>
+
+    <section id="gameArea">
+      <div class="top">
+        <span class="pill" id="round">Pergunta 1 de 6</span>
+        <span class="pill">⚡ <span id="score">5</span> pontos</span>
+      </div>
+      <div class="bar"><div id="barFill"></div></div>
+      <h2 id="question">Você está usando o celular já na cama. O que faz?</h2>
+      <div class="choices" id="choices"></div>
+      <p id="feedback" aria-live="polite"></p>
+    </section>
+
+    <section id="endArea" class="hidden">
+      <h2 id="endTitle"></h2>
+      <p id="endText"></p>
+      <p id="finalScore"></p>
+      <button class="mainButton" onclick="restart()">↻ Recomeçar missão</button>
+    </section>
+
+    <p class="small">Este jogo é educativo: a pontuação representa hábitos que favorecem o descanso. Insônia é uma condição de saúde e não é diagnosticada por uma partida.</p>
+  </main>
+
+  <script>
+    const questions = [
+      {
+        q: "Já está na hora de dormir, mas você está no celular. O que faz?",
+        a: [
+          { t: "Desligo a tela e começo a me preparar para dormir.", p: 1, f: "Boa! Diminuir o uso de telas antes de dormir pode facilitar o descanso." },
+          { t: "Continuo vendo vídeos por mais uma hora.", p: -2, f: "Atenção! A tela e os vídeos podem atrasar a hora de dormir." },
+          { t: "Deito, mas deixo o celular tocando vídeos ao meu lado.", p: -1, f: "Mesmo sem olhar para a tela, os sons e estímulos podem atrapalhar o relaxamento." }
+        ]
+      },
+      {
+        q: "Você tomou um refrigerante com cafeína no fim da noite. E agora?",
+        a: [
+          { t: "Escolho água ou uma bebida sem cafeína nas próximas vezes.", p: 1, f: "Boa escolha! A cafeína pode dificultar o sono, especialmente à noite." },
+          { t: "Tomo mais um para continuar acordado.", p: -2, f: "Isso pode atrapalhar: a cafeína é estimulante e pode manter você alerta." },
+          { t: "Troco o refrigerante por uma bebida energética.", p: -2, f: "Bebidas energéticas também podem conter cafeína e dificultar o sono." }
+        ]
+      },
+      {
+        q: "Seu quarto está muito claro na hora de dormir. O que você faz?",
+        a: [
+          { t: "Diminuo a iluminação e deixo o ambiente mais tranquilo.", p: 1, f: "Ótimo! Um ambiente escuro e confortável ajuda a preparar o corpo para dormir." },
+          { t: "Deixo todas as luzes acesas.", p: -1, f: "Luzes fortes podem dificultar a preparação do corpo para o sono." },
+          { t: "Ligo a televisão para iluminar o quarto.", p: -1, f: "A claridade e o conteúdo da televisão podem manter você mais desperto." }
+        ]
+      },
+      {
+        q: "Você precisa acordar cedo amanhã. Qual é a melhor decisão?",
+        a: [
+          { t: "Organizo minhas coisas e tento dormir em um horário adequado.", p: 1, f: "Mandou bem! Uma rotina regular ajuda a manter o sono organizado." },
+          { t: "Fico jogando até muito tarde.", p: -2, f: "Jogar até tarde pode reduzir o tempo disponível para dormir." },
+          { t: "Deixo para arrumar tudo somente quando acordar.", p: -1, f: "Adiar a organização pode aumentar a correria e dificultar manter um horário de descanso." }
+        ]
+      },
+      {
+        q: "Você está agitado e não consegue desacelerar. O que pode ajudar?",
+        a: [
+          { t: "Faço uma atividade calma, como ler ou ouvir algo tranquilo.", p: 1, f: "Boa! Uma atividade relaxante pode ajudar na transição para o sono." },
+          { t: "Começo uma partida competitiva e cheia de estímulos.", p: -1, f: "Atividades muito estimulantes podem deixar você mais desperto." },
+          { t: "Vou conferir as redes sociais para distrair a cabeça.", p: -1, f: "As redes sociais podem trazer novos estímulos e dificultar desacelerar." }
+        ]
+      },
+      {
+        q: "No dia seguinte, como você tenta manter uma rotina saudável?",
+        a: [
+          { t: "Procuro manter horários parecidos para dormir e acordar.", p: 1, f: "Excelente! Regularidade é uma parte importante dos bons hábitos de sono." },
+          { t: "Mudo completamente meus horários todos os dias.", p: -1, f: "Horários muito irregulares podem bagunçar a rotina de sono." },
+          { t: "Durmo muito tarde durante a semana e tento compensar só no fim de semana.", p: -1, f: "Variar bastante os horários pode dificultar a regularidade da rotina." }
+        ]
+      }
+    ];
+
+    let index = 0;
+    let score = 5;
+    let locked = false;
+
+    const questionEl = document.getElementById("question");
+    const choicesEl = document.getElementById("choices");
+    const feedbackEl = document.getElementById("feedback");
+
+    function updateScore() {
+      document.getElementById("score").textContent = score;
+      // A barra acompanha o avanço nas perguntas, não a pontuação.
+      const progress = (index / questions.length) * 100;
+      document.getElementById("barFill").style.width = progress + "%";
+      document.querySelector(".bar").setAttribute("aria-label", `Progresso: ${index} de ${questions.length} perguntas concluídas`);
+    }
+
+    function showQuestion() {
+      locked = false;
+      feedbackEl.textContent = "";
+      document.getElementById("round").textContent = `Pergunta ${index + 1} de ${questions.length}`;
+      questionEl.textContent = questions[index].q;
+      choicesEl.innerHTML = "";
+      // Embaralha as alternativas a cada pergunta para variar a posição da resposta correta.
+      const shuffledChoices = [...questions[index].a].sort(() => Math.random() - 0.5);
+      shuffledChoices.forEach(choice => {
+        const button = document.createElement("button");
+        button.textContent = choice.t;
+        button.onclick = () => choose(choice);
+        choicesEl.appendChild(button);
+      });
+      updateScore();
+    }
+
+    function choose(choice) {
+      if (locked) return;
+      locked = true;
+      score = Math.max(0, Math.min(8, score + choice.p));
+      updateScore();
+      feedbackEl.textContent = choice.f;
+
+      [...choicesEl.querySelectorAll("button")].forEach(button => {
+        button.disabled = true;
+        if (button.textContent === choice.t) {
+          button.classList.add(choice.p > 0 ? "correct" : "incorrect");
+          button.setAttribute("aria-pressed", "true");
+        }
+      });
+
+      if (score === 0) {
+        setTimeout(() => finish(false), 1100);
+      } else {
+        const next = document.createElement("button");
+        next.className = "mainButton";
+        next.textContent = index === questions.length - 1 ? "Ver resultado" : "Próxima pergunta";
+        next.onclick = () => {
+          index++;
+          if (index < questions.length) showQuestion();
+          else finish(true);
+        };
+        choicesEl.appendChild(next);
+      }
+    }
+
+    function finish(completed) {
+      if (completed) {
+        document.getElementById("barFill").style.width = "100%";
+        document.querySelector(".bar").setAttribute("aria-label", `Progresso: ${questions.length} de ${questions.length} perguntas concluídas`);
+      }
+      document.getElementById("gameArea").classList.add("hidden");
+      document.getElementById("endArea").classList.remove("hidden");
+      const title = document.getElementById("endTitle");
+      const text = document.getElementById("endText");
+
+      if (!completed) {
+        title.textContent = "🌧️ Sua energia de descanso chegou a zero!";
+        text.textContent = "Muitas escolhas pouco favoráveis se acumularam. Na vida real, isso pode prejudicar a qualidade e a duração do sono. Tente rever seus hábitos!";
+      } else if (score >= 7) {
+        title.textContent = "🌟 Noite tranquila!";
+        text.textContent = "Você fez várias escolhas que favorecem uma boa noite de descanso. Continue cuidando da sua rotina!";
+      } else if (score >= 4) {
+        title.textContent = "🌙 Dá para melhorar!";
+        text.textContent = "Você teve alguns bons hábitos, mas também fez escolhas que podem atrapalhar o descanso. Pequenas mudanças já ajudam!";
+      } else {
+        title.textContent = "⛈️ Noite complicada!";
+        text.textContent = "Sua pontuação ficou baixa. Reflita sobre as escolhas e tente montar uma rotina mais favorável ao sono.";
+      }
+      document.getElementById("finalScore").textContent = `Pontuação final: ${score} pontos`;
+    }
+
+    function restart() {
+      index = 0;
+      score = 5;
+      document.getElementById("barFill").style.width = "0%";
+      document.getElementById("gameArea").classList.remove("hidden");
+      document.getElementById("endArea").classList.add("hidden");
+      showQuestion();
+    }
+
+    showQuestion();
+  </script>
+</body>
+</html>
